@@ -48,8 +48,8 @@ onMounted(() => {
 .main-content {
   height: 100vh;
   overflow-y: auto; /* เพิ่มการ scroll ถ้าเนื้อหายาวเกิน */
-  padding: 1rem; /* เพิ่ม padding ตามต้องการ */
-  transition: margin-left 0.3s ease; /* smooth transition เมื่อ sidebar เปิด/ปิด */
+  padding: 1.5rem; /* เพิ่ม padding ตามต้องการ */
+  transition: margin-left 0.3 s ease; /* smooth transition เมื่อ sidebar เปิด/ปิด */
 }
 
 .main-content.no-navbar-layout {

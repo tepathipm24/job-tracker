@@ -25,9 +25,9 @@ export class ApplicationsController {
 
   @Get()
   findAll(@Query('page') page?: number, @Query('limit') limit?:number) {
-    // if(!page || !limit){
-    //   return this.applicationsService.findAll();
-    // }
+    if(!page || !limit){
+      return this.applicationsService.findAll();
+    }
     page = Number(page);
     limit = Number(limit);
 
