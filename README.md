@@ -9,10 +9,10 @@
 ## 📁 โครงสร้างโปรเจกต์
 
 job-tracker-monorepo/
-├── frontend/ # Vue 3 + TailwindCSS + DaisyUI (User Interface) /br
-├── backend/ # NestJS RESTful API (Business Logic & Database) /br
-├── .gitignore /br
-├── README.md /br
+├── frontend/ # Vue 3 + TailwindCSS + DaisyUI (User Interface) </br>
+├── backend/ # NestJS RESTful API (Business Logic & Database) </br>
+├── .gitignore </br>
+├── README.md </br>
 └── ...
 
 ---
