@@ -24,4 +24,8 @@ export class CreateApplicationDto { // Class for data transfer object when creat
   @IsOptional() // Decorator: Makes 'notes' optional
   @IsString()
   notes?: string; // Property for notes (optional)
+
+  @IsOptional()
+  @IsString()
+  channel: string;
 }

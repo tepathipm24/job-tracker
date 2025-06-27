@@ -63,3 +63,26 @@ export async function updateApplicationStatus(applicationId, statusId) {
     alert(err);
   }
 }
+
+export async function addApplication(application) {
+  try {
+    const res = await fetch(appUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(application),
+      credentials: 'include'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    } else {
+      const error = await res.text();
+      throw new Error(error);
+    }
+  } catch (err) {
+    alert(err);
+    throw err;
+  }
+}

@@ -34,4 +34,7 @@ export class Application {
 
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt: Date;
+
+    @Column({name: 'channel', type: 'text', nullable: true })
+    channel: string;
 }
