@@ -1,9 +1,10 @@
 <script setup>
 import TheNavbar from '@/components/TheNavbar.vue'
-import { getAllList, getListPerPage, getAllStatus, updateApplicationStatus } from '@/utils/api';
+import { getAllList, getListPerPage, getAllStatus, updateApplicationStatus,  deleteApplication } from '@/utils/api';
 import { formatDate } from '../utils/common';
 import { onBeforeMount, ref, onMounted, onBeforeUnmount } from 'vue';
 import { computed, watch } from 'vue';
+import Swal from 'sweetalert2'; // Import SweetAlert2
 
 
 let appList = ref([])
@@ -20,8 +21,6 @@ const headers = ref([
   { text: 'Job Title', value: 'jobTitle' },
   { text: 'Applied Date', value: 'appliedDate' },
   { text: 'Status', value: 'status' },
-  { text: 'Created At', value: 'createdAt' },
-  { text: 'Updated At', value: 'updatedAt' }
 ])
 const statusBadgeClass = (label) => {
   switch (label) {
@@ -230,6 +229,45 @@ function goToPage(n) {
   page.value = n;
 }
 
+const confirmDelete = async(id) => {
+  const result = await Swal.fire({
+    title: 'Are you sure?',
+    text: 'You are about to delete this application. This cannot be undone!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'No, keep it'
+  });
+
+  if(result.isConfirmed) {
+    await handleDelete(id)
+  } else if(result.dismiss === Swal.DismissReason.cancel) {
+    Swal.fire('Cancelled', 'This application was not deleted.', 'info')
+  }
+}
+
+const handleDelete = async(id) => {
+  try {
+    const success = await deleteApplication(id)
+    if(success) {
+      await Swal.fire(
+        'Deleted!',
+        'The application has been successfully deleted.',
+        'success'
+      )
+
+      appList.value = appList.value.filter(app => app.id !== id)
+    }
+  } catch (error) {
+    await Swal.fire(
+      'Error!',
+      `Failed to delete the application: ${error.message || 'Unknown error'}`,
+      'error'
+    );
+  }
+}
 </script>
 
 <template>
@@ -323,8 +361,8 @@ function goToPage(n) {
                 </span>
               </div>
             </td>
-            <td>{{ formatDate(data.createdAt) }}</td>
-            <td>{{ formatDate(data.updatedAt) }}</td>
+            <td><RouterLink :to="{ name: 'application-edit', params: { id: data.id } }">edit</RouterLink></td>
+            <td><button @click="confirmDelete(data.id)" class="cursor-pointer">delete</button></td>
           </tr>
           <!-- Empty State -->
           <tr v-if="sortedAppList.length === 0">

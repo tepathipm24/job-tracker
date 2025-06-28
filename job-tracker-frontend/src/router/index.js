@@ -27,9 +27,9 @@ const router = createRouter({
       meta: { requiresNavbar: true }
     },
     {
-      path: '/applications/:id/edit',
+      path: '/applications/edit/:id',
       name: 'application-edit',
-      component: ApplicationEditView,
+      component: ApplicationAddView,
       meta: { requiresNavbar: true },
       props: true
     },

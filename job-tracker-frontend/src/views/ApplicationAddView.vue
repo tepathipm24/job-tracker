@@ -1,16 +1,20 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { addApplication, getAllStatus } from '@/utils/api'
+import { ref, onMounted, onUnmounted, watch, onBeforeMount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { addApplication, getAllStatus, getSpecificApp, updateApplication } from '@/utils/api' // ตรวจสอบ Path ให้ถูกต้อง
 
 import BaseInput from '../components/BaseInput.vue'
 import BaseButton from '../components/BaseButton.vue'
 import Pikaday from "pikaday";
+import Swal from 'sweetalert2'; // <-- Import SweetAlert2
 
 const myDatepicker = ref(null);
-const router = useRouter()
+const router = useRouter();
+const route = useRoute();
+const id = ref(null); // เปลี่ยนเป็น ref() แทน let id = ref() เพื่อให้ Reactive
 
-const statusList = ref([])
+const statusList = ref([]);
+const data = ref(null);
 
 const form = ref({
   position: '',
@@ -19,40 +23,99 @@ const form = ref({
   statusId: '',
   channel: '',
   notes: ''
-})
+});
 
-const loading = ref(false)
-const error = ref('')
-const success = ref(false)
-let picker = ref()
+// *** เพิ่มตัวแปรสำหรับเก็บสถานะเริ่มต้นของฟอร์ม ***
+const initialForm = ref(null);
+
+// *** Computed Property เพื่อตรวจสอบว่าฟอร์มมีการเปลี่ยนแปลงหรือไม่ ***
+import { computed } from 'vue'; // ต้อง import computed
+const isFormChanged = computed(() => {
+  if (!initialForm.value) return false; // ถ้ายังไม่มีค่าเริ่มต้น ถือว่ายังไม่เปลี่ยน (เช่น โหมดเพิ่ม)
+  
+  // เปรียบเทียบค่าแต่ละ field
+  return (
+    form.value.position !== initialForm.value.position ||
+    form.value.company !== initialForm.value.company ||
+    form.value.date !== initialForm.value.date ||
+    form.value.statusId !== initialForm.value.statusId ||
+    form.value.channel !== initialForm.value.channel ||
+    form.value.notes !== initialForm.value.notes
+  );
+});
+
+
+const loading = ref(false);
+const error = ref('');
+let picker = ref(null); 
 
 function validate() {
   if (!form.value.position || !form.value.company || !form.value.date || !form.value.statusId) {
-    error.value = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน'
-    return false
+    error.value = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน';
+    Swal.fire({
+      icon: 'warning',
+      title: 'ข้อมูลไม่ครบถ้วน',
+      text: error.value,
+      confirmButtonText: 'ตกลง'
+    });
+    return false;
   }
-  error.value = ''
-  return true
+  error.value = '';
+  return true;
 }
 
+onBeforeMount(async () => {
+  try {
+    statusList.value = await getAllStatus();
+
+    if (route.name === 'application-edit') {
+      id.value = route.params.id;
+      data.value = await getSpecificApp(id.value);
+
+      form.value.position = data.value.jobTitle;
+      form.value.company = data.value.companyName;
+      form.value.date = data.value.appliedDate;
+      form.value.statusId = data.value.statusId;
+      form.value.channel = data.value.channel;
+      form.value.notes = data.value.notes;
+
+      // *** หลังจากโหลดข้อมูลแล้ว ให้เก็บสถานะเริ่มต้นไว้ ***
+      initialForm.value = { ...form.value }; // ใช้ spread operator เพื่อสร้าง deep copy (สำหรับ primitive types)
+    } else {
+      // ในโหมดเพิ่มข้อมูล, ฟอร์มจะถือว่ามีการเปลี่ยนแปลงเสมอ (เริ่มต้นจากค่าว่าง)
+      initialForm.value = { ...form.value }; // ตั้งค่าเริ่มต้นเป็นค่าว่าง
+  }
+  } catch (e) {
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: `ไม่สามารถโหลดข้อมูลได้: ${e.message}`,
+      confirmButtonText: 'ตกลง'
+    });
+    console.error("Error loading initial data:", e);
+  }
+});
+
 onMounted(async () => {
-  statusList.value = await getAllStatus()
-  picker = new Pikaday({
+  picker.value = new Pikaday({
     field: myDatepicker.value,
     format: 'DD/MM/YYYY',
-    // ฟังก์ชันสำหรับกำหนดฟอร์แมตที่แสดงใน input
     toString(date, format) {
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const year = date.getFullYear();
       return `${day}/${month}/${year}`;
     },
-    // เมื่อเลือกวันที่แล้วให้อัปเดต form.date
     onSelect: function (date) {
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      if (date instanceof Date && !isNaN(date)) {
       const year = date.getFullYear();
-      form.value.date = `${year}-${month}-${day}`; // เก็บเป็น YYYY-MM-DD สำหรับ API
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        // *** สำคัญ: เก็บวันที่ในรูปแบบที่ API คาดหวัง (YYYY-MM-DD)
+        form.value.date = `${year}-${month}-${day}`; 
+      } else {
+        form.value.date = '';
+      }
     },
     i18n: {
       previousMonth: 'เดือนก่อน',
@@ -67,58 +130,125 @@ onMounted(async () => {
       weekdaysShort: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
     }
   });
+
+  if (form.value.date) {
+    try {
+      const [year, month, day] = form.value.date.split('-').map(Number);
+      picker.value.setDate(new Date(year, month - 1, day)); // month ต้อง -1
+    } catch (e) {
+      console.error("Error setting Pikaday date:", e);
+    }
+  }
 });
 
 onUnmounted(() => {
-  if (picker) {
-    picker.destroy();
+  if (picker.value) {
+    picker.value.destroy();
   }
 });
 
 async function handleSubmit() {
-  if (!validate()) return
-  loading.value = true
-  error.value = ''
-  const minTime = 850 // ms
-  const start = Date.now()
+  if (!validate()) return;
+
+  // *** เพิ่ม SweetAlert2 Confirm Dialog ที่นี่ ***
+  const actionType = route.name === 'application-edit' ? 'แก้ไข' : 'เพิ่ม';
+  const confirmText = `คุณต้องการ${actionType}ข้อมูลใบสมัครนี้ใช่หรือไม่?`;
+  const confirmButtonText = `ใช่, ${actionType}เลย!`;
+
+  const result = await Swal.fire({
+    title: 'ยืนยันการบันทึกข้อมูล?',
+    text: confirmText,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: confirmButtonText,
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (!result.isConfirmed) {
+    Swal.fire(
+      'ยกเลิก',
+      'การบันทึกข้อมูลถูกยกเลิก.',
+      'info'
+    );
+    return;
+  }
+
+  // *** ส่วนที่เหลือของ Logic การบันทึก (เหมือนเดิม) ***
+  loading.value = true;
+  error.value = '';
+
+  const minTime = 850;
+  const start = Date.now();
+
   try {
-    await addApplication({
-      jobTitle: form.value.position,
-      companyName: form.value.company,
-      appliedDate: form.value.date, // ใช้ form.value.date แทน picker.value
-      statusId: form.value.statusId,
-      channel: form.value.channel,
-      notes: form.value.notes
-    })
-    success.value = true
-    const elapsed = Date.now() - start
-    if (elapsed < minTime) {
-      await new Promise(res => setTimeout(res, minTime - elapsed))
+    let responseData;
+    if (route.name === 'application-edit') {
+      responseData = await updateApplication(id.value, {
+        jobTitle: form.value.position,
+        companyName: form.value.company,
+        appliedDate: form.value.date, 
+        statusId: form.value.statusId,
+        channel: form.value.channel,
+        notes: form.value.notes
+      });
+      console.log('Update successful:', responseData);
+    } else {
+      responseData = await addApplication({
+        jobTitle: form.value.position,
+        companyName: form.value.company,
+        appliedDate: form.value.date, 
+        statusId: form.value.statusId,
+        channel: form.value.channel,
+        notes: form.value.notes
+      });
+      console.log('Add successful:', responseData);
     }
-    router.push({ name: 'applications' })
+
+    const elapsed = Date.now() - start;
+    if (elapsed < minTime) {
+      await new Promise(res => setTimeout(res, minTime - elapsed));
+    }
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'สำเร็จ!',
+      text: `บันทึกข้อมูลใบสมัครงานเรียบร้อยแล้ว.`,
+      showConfirmButton: false,
+      timer: 1500
+    });
+
+    router.push({ name: 'applications' });
+
   } catch (e) {
-    error.value = 'เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่'
+    console.error("Error submitting form:", e);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: `เกิดข้อผิดพลาดในการบันทึก: ${e.message || 'กรุณาลองใหม่'}`,
+      confirmButtonText: 'ตกลง'
+    });
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-watch(form, (newForm, oldForm) => {
-  console.log('Form changed:', newForm)
-  console.log('Old form:', oldForm)
-}, { deep: true })
+watch(form, (newForm) => {
+  console.log('Form changed:', newForm);
+}, { deep: true });
 
 function handleCancel() {
-  router.back()
+  router.back();
 }
-
 </script>
 
 <template>
   <div class="create-app-container max-w-2xl w-full h-auto mx-auto bg-base-300 rounded-xl shadow-lg p-8 mt-10 relative">
-    <h1 class="text-2xl font-bold mb-6 text-center">เพิ่มใบสมัครงานใหม่</h1>
+    <h1 class="text-2xl font-bold mb-6 text-center">
+      {{ route.name === 'application-edit' ? 'แก้ไขใบสมัครงาน' : 'เพิ่มใบสมัครงานใหม่' }}
+    </h1>
     
-    <!-- Form Content -->
     <form @submit.prevent="handleSubmit" class="!space-y-10 !pt-5" :class="{ 'opacity-60 pointer-events-none': loading }">
       <div class="grid grid-cols-1 md:grid-cols-2 !gap-10">
         <BaseInput v-model="form.company" label="บริษัท" required class="text-base h-12" placeholder="กรอกชื่อบริษัท" />
@@ -129,7 +259,7 @@ function handleCancel() {
           <legend class="fieldset-legend font-medium text-base pb-2">
             วันที่สมัคร <span class="text-red-500">*</span>
           </legend>
-          <input type="text" class="input pika-single" ref="myDatepicker" placeholder="เลือกวันที่" readonly />
+          <input type="text" class="input pika-single" ref="myDatepicker" placeholder="เลือกวันที่" readonly v-model="form.date"/>
         </div>
 
         <BaseInput v-model="form.channel" label="ช่องทางที่สมัคร" class="text-base h-12"
@@ -152,23 +282,25 @@ function handleCancel() {
         </div>
       </div>
       
-      <!-- Error & Success Messages -->
-      <div v-if="error" class="text-red-500 text-sm text-center">{{ error }}</div>
-      <div v-if="success" class="text-green-600 text-sm text-center">บันทึกสำเร็จ! กำลังกลับไปหน้ารายการ...</div>
-      
-      <!-- Buttons -->
       <div class="flex flex-col md:flex-row gap-3 mt-6 justify-center">
-        <BaseButton type="submit" :disabled="loading" class="relative">
+        <BaseButton
+          type="submit"
+          :disabled="loading || !isFormChanged" :class="{ 'btn-disabled': !isFormChanged && !loading }" class="btn btn-primary text-white" >
+          <span v-if="loading" class="loading loading-spinner"></span>
           {{ loading ? 'กำลังบันทึก...' : 'บันทึก' }}
         </BaseButton>
         
-        <BaseButton type="button" @click="handleCancel" secondary :disabled="loading">
+        <BaseButton
+          type="button"
+          @click="handleCancel"
+          secondary
+          :disabled="loading"
+          class="btn btn-ghost" >
           ยกเลิก
         </BaseButton>
       </div>
     </form>
 
-    <!-- Enhanced Progress Bar Loading (Top) -->
     <transition name="fade">
       <div v-if="loading" class="fixed top-0 left-0 right-0 z-50 flex flex-col items-center">
         <div class="w-full backdrop-blur-md bg-white/70 shadow-lg border-b border-emerald-200">
@@ -184,6 +316,7 @@ function handleCancel() {
 </template>
 
 <style scoped>
+
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.3s;
 }

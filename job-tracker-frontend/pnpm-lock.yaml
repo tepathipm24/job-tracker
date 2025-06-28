@@ -29,12 +29,18 @@ importers:
       lucide-vue-next:
         specifier: ^0.514.0
         version: 0.514.0(vue@3.5.17)
+      pikaday:
+        specifier: ^1.8.2
+        version: 1.8.2
       pinia:
         specifier: ^3.0.1
         version: 3.0.3(vue@3.5.17)
       primevue:
         specifier: ^4.3.5
         version: 4.3.5(vue@3.5.17)
+      sweetalert2:
+        specifier: ^11.22.1
+        version: 11.22.1
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
@@ -1056,6 +1062,9 @@ packages:
     resolution: {integrity: sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==}
     engines: {node: '>=12'}
 
+  pikaday@1.8.2:
+    resolution: {integrity: sha512-TNtsE+34BIax3WtkB/qqu5uepV1McKYEgvL3kWzU7aqPCpMEN6rBF3AOwu4WCwAealWlBGobXny/9kJb49C1ew==}
+
   pinia@3.0.3:
     resolution: {integrity: sha512-ttXO/InUULUXkMHpTdp9Fj4hLpD/2AoJdmAbAeW2yu1iy1k+pkFekQXw5VpC0/5p51IOR/jDaDRfRWRnMMsGOA==}
     peerDependencies:
@@ -1129,6 +1138,9 @@ packages:
   superjson@2.2.2:
     resolution: {integrity: sha512-5JRxVqC8I8NuOUjzBbvVJAKNM8qoVuH0O77h4WInc/qC2q5IreqKxYwgkga3PfA22OayK2ikceb/B26dztPl+Q==}
     engines: {node: '>=16'}
+
+  sweetalert2@11.22.1:
+    resolution: {integrity: sha512-3dGb50jlfcJ0OHZ5D4hJWK/cIYAfCnxK5QQVndOJqhyiCYJozINEfHG7wvRbkACj60hDnPWu+t9EFcbYWaSEuQ==}
 
   tailwind-merge@3.3.1:
     resolution: {integrity: sha512-gBXpgUm/3rp1lMZZrM/w7D8GKqshif0zAymAhbCyIt8KMe+0v9DQ7cdYLR4FHH/cKpdTXb+A/tKKU3eolfsI+g==}
@@ -2157,6 +2169,8 @@ snapshots:
 
   picomatch@4.0.2: {}
 
+  pikaday@1.8.2: {}
+
   pinia@3.0.3(vue@3.5.17):
     dependencies:
       '@vue/devtools-api': 7.7.7
@@ -2239,6 +2253,8 @@ snapshots:
   superjson@2.2.2:
     dependencies:
       copy-anything: 3.0.5
+
+  sweetalert2@11.22.1: {}
 
   tailwind-merge@3.3.1: {}
 

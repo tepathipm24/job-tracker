@@ -2,7 +2,12 @@
 const props = defineProps({
   type: { type: String, default: 'button' },
   disabled: Boolean,
-  secondary: Boolean
+  secondary: Boolean,
+  loading: { // <-- ประกาศ prop 'loading' ที่นี่
+    type: Boolean,
+    default: false // กำหนดค่า default เป็น false
+  },
+  variant: Boolean
 })
 </script>
 
