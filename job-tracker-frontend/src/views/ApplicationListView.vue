@@ -1,11 +1,15 @@
 <script setup>
 import TheNavbar from '@/components/TheNavbar.vue'
-import { getAllList, getListPerPage, getAllStatus, updateApplicationStatus,  deleteApplication } from '@/utils/api';
+import { getAllList, getListPerPage, getAllStatus, updateApplicationStatus, deleteApplication } from '@/utils/api';
 import { formatDate } from '../utils/common';
-import { onBeforeMount, ref, onMounted, onBeforeUnmount } from 'vue';
-import { computed, watch } from 'vue';
-import Swal from 'sweetalert2'; // Import SweetAlert2
+import { onBeforeMount, ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import Swal from 'sweetalert2';
+import ApplicationAddView from './ApplicationAddView.vue';
 
+const route = useRoute();
+const router = useRouter();
+const modalRef = ref(null);
 
 let appList = ref([])
 let statusList = ref([])
@@ -22,6 +26,23 @@ const headers = ref([
   { text: 'Applied Date', value: 'appliedDate' },
   { text: 'Status', value: 'status' },
 ])
+
+const showAddModal = computed(() => route.name === 'application-add');
+const showEditModal = computed(() => route.name === 'application-edit' && !!route.params.id);
+
+function openAddModal() {
+  router.push({ name: 'application-add' });
+}
+function closeAddModal() {
+  router.push({ name: 'applications' });
+}
+function openEditModal(id) {
+  router.push({ name: 'application-edit', params: { id } });
+}
+function closeEditModal() {
+  router.push({ name: 'applications' });
+}
+
 const statusBadgeClass = (label) => {
   switch (label) {
     case 'Applied': return 'badge-info';
@@ -51,6 +72,16 @@ onBeforeUnmount(() => {
 watch(searchText, () => {
   page.value = 1;
 });
+
+// เพิ่มฟังก์ชันสำหรับรีเฟรชข้อมูลเมื่อเพิ่มสำเร็จ
+const onApplicationAdded = async () => {
+  closeAddModal();
+  await fetchApplications();
+};
+const onApplicationEdited = async () => {
+  closeEditModal();
+  await fetchApplications();
+};
 
 //ดึง List สมัครงานในแต่ละหน้า
 const fetchApplications = async () => {
@@ -107,9 +138,6 @@ const toggleSort = (fieldToSort) => {
   } else {
     sortConfig.value.splice(index, 1)
   }
-
-  console.log(sortConfig.value);
-
 }
 
 const suggestionsVisible = ref(false);
@@ -125,10 +153,8 @@ const handleBlur = () => {
 const sortedAppList = computed(() => {
   let baseList = filterAppList.value
   if (!sortConfig.value.length) return baseList;
-
   // ทำสำเนา array เพื่อไม่แก้ไขต้นฉบับ
   let sorted = [...baseList];
-
   // รองรับ multi-sort (sortConfig อาจมีหลาย field)
   sortConfig.value.slice().reverse().forEach(({ field, direction }) => {
     sorted.sort((a, b) => {
@@ -146,29 +172,23 @@ const sortedAppList = computed(() => {
         aValue = aValue.label;
         bValue = bValue.label;
       }
-
       if (aValue < bValue) return direction === 'asc' ? -1 : 1;
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
   });
-
   return sorted;
 });
 
 const searchSuggestions = computed(() => {
   if (!searchText.value || searchText.value.length < 2) return [];
-
   const lowerCaseSearch = searchText.value.toLowerCase();
-
   const companies = appList.value.map(app => app.companyName);
   const titles = appList.value.map(app => app.jobTitle);
-
   const allSuggestions = [...new Set([...companies, ...titles])];
-
   return allSuggestions.filter(suggestion =>
     suggestion.toLowerCase().includes(lowerCaseSearch)
-  ).slice(0, 5); // Limit to 5 suggestions
+  ).slice(0, 5);
 });
 
 const selectSuggestion = (suggestion) => {
@@ -191,17 +211,14 @@ const getSortDirection = (field) => {
 // ดูค่า status ที่เปลี่ยนไป
 const handleStatusChange = async (application, event) => {
   clearTimeout(debounceTimer);
-
   const newStatusLabel = event.target.value;
   const newStatus = statusList.value.find(s => s.label === newStatusLabel);
-
   if (newStatus) {
     const appIndex = appList.value.findIndex(app => app.id === application.id);
     const oldStatus = application.status;
     if (appIndex !== -1) {
       appList.value[appIndex].status = newStatus;
     }
-
     debounceTimer = setTimeout(async () => {
       try {
         const updatedApplication = await updateApplicationStatus(application.id, newStatus.id);
@@ -229,7 +246,7 @@ function goToPage(n) {
   page.value = n;
 }
 
-const confirmDelete = async(id) => {
+const confirmDelete = async (id) => {
   const result = await Swal.fire({
     title: 'Are you sure?',
     text: 'You are about to delete this application. This cannot be undone!',
@@ -240,24 +257,22 @@ const confirmDelete = async(id) => {
     confirmButtonText: 'Yes, delete it!',
     cancelButtonText: 'No, keep it'
   });
-
-  if(result.isConfirmed) {
+  if (result.isConfirmed) {
     await handleDelete(id)
-  } else if(result.dismiss === Swal.DismissReason.cancel) {
+  } else if (result.dismiss === Swal.DismissReason.cancel) {
     Swal.fire('Cancelled', 'This application was not deleted.', 'info')
   }
 }
 
-const handleDelete = async(id) => {
+const handleDelete = async (id) => {
   try {
     const success = await deleteApplication(id)
-    if(success) {
+    if (success) {
       await Swal.fire(
         'Deleted!',
         'The application has been successfully deleted.',
         'success'
       )
-
       appList.value = appList.value.filter(app => app.id !== id)
     }
   } catch (error) {
@@ -329,7 +344,6 @@ const handleDelete = async(id) => {
           </tr>
         </thead>
         <tbody v-if="!loading">
-          <!-- row 1 -->
           <tr v-for="(data, index) in paginatedList" :key="data.id" class="transition-colors cursor-pointer"
             :class="{ 'bg-primary/20': selectedRowIds.includes(data.id) }" @click="toggleRowSelection(data.id)">
             <th>
@@ -361,10 +375,31 @@ const handleDelete = async(id) => {
                 </span>
               </div>
             </td>
-            <td><RouterLink :to="{ name: 'application-edit', params: { id: data.id } }">edit</RouterLink></td>
-            <td><button @click="confirmDelete(data.id)" class="cursor-pointer">delete</button></td>
+            <td>
+              <button
+                @click.stop="openEditModal(data.id)"
+                class="btn btn-sm btn-circle btn-ghost text-green-600 hover:bg-green-100 hover:text-green-800 transition"
+                aria-label="Edit"
+                title="Edit"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13zm0 0V17h4" />
+                </svg>
+              </button>
+            </td>
+            <td>
+              <button
+                @click="confirmDelete(data.id)"
+                class="btn btn-sm btn-circle btn-ghost text-red-600 hover:bg-red-100 hover:text-red-800 transition"
+                aria-label="Delete"
+                title="Delete"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </td>
           </tr>
-          <!-- Empty State -->
           <tr v-if="sortedAppList.length === 0">
             <td :colspan="headers.length + 1" class="text-center py-16 !pt-16 !pb-16">
               <div class="flex flex-col items-center gap-4">
@@ -395,6 +430,7 @@ const handleDelete = async(id) => {
       </div>
     </div>
   </div>
+  
   <!-- Paginator -->
   <p class="text-center text-base-content/60 text-xs md:text-sm mb-2 font-sans">
     Page {{ page }} of {{ Math.ceil(total / limit) }} — Showing {{ limit }} per page
@@ -407,4 +443,41 @@ const handleDelete = async(id) => {
       </template>
     </div>
   </div>
+  
+  <!-- Floating Action Button -->
+  <button
+    @click="openAddModal"
+    class="fixed bottom-18 right-20 z-50 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full w-10 h-10 shadow-2xl transition duration-300 ease-in-out hover:shadow-xl transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-300"
+    aria-label="Add Application"
+    title="เพิ่มใบสมัครงานใหม่"
+  >
+    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+    </svg>
+  </button>
+
+  <!-- DaisyUI Modal -->
+  <dialog ref="modalRef" id="my_modal_2" class="modal" :open="showAddModal" @close="closeAddModal">
+    <div class="modal-box p-0 max-w-2xl w-full">
+      <ApplicationAddView :isModal="true" :visible="showAddModal" @close="closeAddModal" @success="onApplicationAdded" />
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
+
+  <dialog ref="modalRef" id="edit_modal" class="modal" :open="showEditModal" @close="closeEditModal">
+    <div class="modal-box p-0 max-w-2xl w-full">
+      <ApplicationAddView :isModal="true" :visible="showEditModal" @close="closeEditModal" @success="onApplicationEdited" />
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 </template>
+
+<style>
+.modal::backdrop {
+  backdrop-filter: blur(32px); /* ปรับค่าความเบลอได้ตามต้องการ */
+}
+</style>

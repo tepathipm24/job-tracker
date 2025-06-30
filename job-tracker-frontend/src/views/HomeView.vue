@@ -12,7 +12,7 @@ const features = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-b from-white to-emerald-50 flex justify-center items-center py-12 px-4">
+  <div class="min-h-full w-full bg-gradient-to-b from-white to-emerald-50 flex justify-center items-center py-12 px-4">
     <section class="landing-hero max-w-6xl w-full bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
       <div class="w-full min-h-[300px] bg-transparent rounded-2xl overflow-hidden flex justify-center items-center p-4 mb-8 relative">
         <img 

@@ -23,13 +23,13 @@ const router = createRouter({
     {
       path: '/applications/add',
       name: 'application-add',
-      component: ApplicationAddView,
+      component: ApplicationListView,
       meta: { requiresNavbar: true }
     },
     {
       path: '/applications/edit/:id',
       name: 'application-edit',
-      component: ApplicationAddView,
+      component: ApplicationListView,
       meta: { requiresNavbar: true },
       props: true
     },
