@@ -288,7 +288,6 @@ const handleDelete = async (id) => {
 <template>
   <div class="max-h-screen h-10/12 bg-base-100">
     <TheNavbar />
-    <!-- Header Section -->
     <div class="hero flex bg-base-200 rounded-xl !pb-6 shadow-md justify-start mt-30">
       <div class="flex flex-col items-start w-full">
         <div class="flex items-center gap-4 mb-2">
@@ -322,13 +321,11 @@ const handleDelete = async (id) => {
       </div>
     </div>
 
-    <!-- Table Section -->
     <div class="overflow-x-auto rounded-xl shadow-lg mt-30">
       <div v-if="loading" class="flex justify-center py-4">
         <span class="loading loading-infinity loading-xl"></span>
       </div>
       <table class="table w-full">
-        <!-- head -->
         <thead class="bg-base-200">
           <tr>
             <th class="text-base font-bold text-base-content/80">#</th>
@@ -431,7 +428,6 @@ const handleDelete = async (id) => {
     </div>
   </div>
   
-  <!-- Paginator -->
   <p class="text-center text-base-content/60 text-xs md:text-sm mb-2 font-sans">
     Page {{ page }} of {{ Math.ceil(total / limit) }} — Showing {{ limit }} per page
   </p>
@@ -444,7 +440,6 @@ const handleDelete = async (id) => {
     </div>
   </div>
   
-  <!-- Floating Action Button -->
   <button
     @click="openAddModal"
     class="fixed bottom-18 right-20 z-50 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full w-10 h-10 shadow-2xl transition duration-300 ease-in-out hover:shadow-xl transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-300"
@@ -456,7 +451,6 @@ const handleDelete = async (id) => {
     </svg>
   </button>
 
-  <!-- DaisyUI Modal -->
   <dialog ref="modalRef" id="my_modal_2" class="modal" :open="showAddModal" @close="closeAddModal">
     <div class="modal-box p-0 max-w-2xl w-full">
       <ApplicationAddView :isModal="true" :visible="showAddModal" @close="closeAddModal" @success="onApplicationAdded" />

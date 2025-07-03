@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, onBeforeMount, defineProps, defineEmits, nextTick, computed, defineExpose } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { addApplication, getAllStatus, getSpecificApp, updateApplication } from '@/utils/api'
-import BaseInput from '../components/BaseInput.vue'
-import BaseButton from '../components/BaseButton.vue'
-import Pikaday from "pikaday";
+import { ref, onMounted, onUnmounted, watch, onBeforeMount, defineProps, defineEmits, nextTick, computed, defineExpose } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { addApplication, getAllStatus, getSpecificApp, updateApplication } from '@/utils/api';
+import BaseInput from '../components/BaseInput.vue';
+import BaseButton from '../components/BaseButton.vue';
 import Swal from 'sweetalert2';
 
 const props = defineProps({
@@ -14,7 +13,19 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success']);
 
-const dateInputComponentRef = ref(null);
+const attributes = computed(() => {
+  if (form.value.appliedDate) {
+    return [
+      {
+        highlight: true,
+        dates: form.value.appliedDate,
+      },
+    ];
+  }
+  return [];
+});
+
+let isDark = ref(true)
 const router = useRouter();
 const route = useRoute();
 const id = ref(null);
@@ -22,29 +33,24 @@ const statusList = ref([]);
 const data = ref(null);
 const loading = ref(false);
 const error = ref('');
-let picker = ref(null);
 
 const form = ref({
-  position: '',
-  company: '',
-  date: '',
+  jobTitle: '',
+  companyName: '',
+  appliedDate: null,
   statusId: '',
   channel: '',
   notes: ''
 });
 
-// *** เพิ่มตัวแปรสำหรับเก็บสถานะเริ่มต้นของฟอร์ม ***
 const initialForm = ref(null);
 
-// *** Computed Property เพื่อตรวจสอบว่าฟอร์มมีการเปลี่ยนแปลงหรือไม่ ***
 const isFormChanged = computed(() => {
-  if (!initialForm.value) return false; // ถ้ายังไม่มีค่าเริ่มต้น ถือว่ายังไม่เปลี่ยน (เช่น โหมดเพิ่ม)
-
-  // เปรียบเทียบค่าแต่ละ field
+  if (!initialForm.value) return false;
   return (
-    form.value.position !== initialForm.value.position ||
-    form.value.company !== initialForm.value.company ||
-    form.value.date !== initialForm.value.date ||
+    form.value.jobTitle !== initialForm.value.jobTitle ||
+    form.value.companyName !== initialForm.value.companyName ||
+    form.value.appliedDate?.toISOString() !== initialForm.value.appliedDate?.toISOString() ||
     form.value.statusId !== initialForm.value.statusId ||
     form.value.channel !== initialForm.value.channel ||
     form.value.notes !== initialForm.value.notes
@@ -52,7 +58,7 @@ const isFormChanged = computed(() => {
 });
 
 function validate() {
-  if (!form.value.position || !form.value.company || !form.value.date || !form.value.statusId) {
+  if (!form.value.jobTitle || !form.value.companyName || !form.value.appliedDate || !form.value.statusId) {
     error.value = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน';
     Swal.fire({
       icon: 'warning',
@@ -66,90 +72,46 @@ function validate() {
   return true;
 }
 
-const createPikaday = () => {
-  if (picker.value) {
-    picker.value.destroy();
-    picker.value = null;
-  }
-  if (dateInputComponentRef.value && dateInputComponentRef.value.inputElement) {
-    picker.value = new Pikaday({
-      field: dateInputComponentRef.value.inputElement,
-      format: 'DD/MM/YYYY',
-      toString(date, format) {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-      },
-      onSelect: function (date) {
-        if (date instanceof Date && !isNaN(date)) {
-          const year = date.getFullYear();
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const day = date.getDate().toString().padStart(2, '0');
-          form.value.date = `${year}-${month}-${day}`;
-        } else {
-          form.value.date = '';
-        }
-      },
-      i18n: {
-        previousMonth: 'เดือนก่อน',
-        nextMonth: 'เดือนถัดไป',
-        months: [
-          'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-          'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-        ],
-        weekdays: [
-          'อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'
-        ],
-        weekdaysShort: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
-      }
-    });
-    if (form.value.date) {
-      try {
-        const [year, month, day] = form.value.date.split('-').map(Number);
-        picker.value.setDate(new Date(year, month - 1, day));
-      } catch (e) {
-        // Error setting Pikaday date
-      }
-    }
-  }
+const resetForm = () => {
+  form.value = {
+    jobTitle: '',
+    companyName: '',
+    appliedDate: null,
+    statusId: '',
+    channel: '',
+    notes: ''
+  };
+  initialForm.value = { ...form.value };
 };
 
-watch(
-  () => props.visible,
-  async (val) => {
-    if (val) {
-      await nextTick();
-      createPikaday();
-    } else {
-      if (picker.value) {
-        picker.value.destroy();
-        picker.value = null;
-      }
-    }
-  }
-);
-
-onBeforeMount(async () => {
+const loadAndInit = async () => {
+  loading.value = true;
   try {
     statusList.value = await getAllStatus();
 
-    if (route.name === 'application-edit') {
+    if (route.name === 'application-edit' && route.params.id) {
       id.value = route.params.id;
       data.value = await getSpecificApp(id.value);
 
-      form.value.position = data.value.jobTitle;
-      form.value.company = data.value.companyName;
-      form.value.date = data.value.appliedDate;
+      form.value.jobTitle = data.value.jobTitle;
+      form.value.companyName = data.value.companyName;
+      let parsedDate = null;
+      if (data.value.appliedDate) {
+        const dateObj = new Date(data.value.appliedDate);
+        if (!isNaN(dateObj.getTime())) {
+          parsedDate = dateObj;
+        } else {
+          console.warn("API returned an invalid date string:", data.value.appliedDate);
+        }
+      }
+      form.value.appliedDate = parsedDate;
       form.value.statusId = data.value.statusId;
       form.value.channel = data.value.channel;
       form.value.notes = data.value.notes;
 
-      // *** หลังจากโหลดข้อมูลแล้ว ให้เก็บสถานะเริ่มต้นไว้ ***
-      initialForm.value = { ...form.value }; // ใช้ spread operator เพื่อสร้าง deep copy (สำหรับ primitive types)
+      initialForm.value = { ...form.value };
     } else {
-      // ในโหมดเพิ่มข้อมูล, ฟอร์มจะถือว่ามีการเปลี่ยนแปลงเสมอ (เริ่มต้นจากค่าว่าง)
-      initialForm.value = { ...form.value }; // ตั้งค่าเริ่มต้นเป็นค่าว่าง
+      resetForm();
     }
   } catch (e) {
     Swal.fire({
@@ -158,112 +120,102 @@ onBeforeMount(async () => {
       text: `ไม่สามารถโหลดข้อมูลได้: ${e.message}`,
       confirmButtonText: 'ตกลง'
     });
-    console.error("Error loading initial data:", e);
+    console.error("Error loading initial data or status:", e);
+  } finally {
+    loading.value = false;
   }
-});
+};
 
-onMounted(async () => {
-  await nextTick();
-  createPikaday();
-});
+watch(
+  () => props.visible,
+  async (val) => {
+    if (val) {
+      await loadAndInit();
+    } else {
+      resetForm();
+    }
+  },
+  { immediate: true }
+);
 
-onUnmounted(() => {
-  if (picker.value) {
-    picker.value.destroy();
-    picker.value = null;
+onBeforeMount(async () => {
+  if (!props.isModal || (props.isModal && !props.visible)) {
+    await loadAndInit();
   }
 });
 
 async function handleSubmit() {
+  // ตรวจสอบความถูกต้องของข้อมูลก่อน
   if (!validate()) return;
-  const actionType = route.name === 'application-edit' ? 'แก้ไข' : 'เพิ่ม';
-  const confirmText = `คุณต้องการ${actionType}ข้อมูลใบสมัครนี้ใช่หรือไม่?`;
-  const confirmButtonText = `ใช่, ${actionType}เลย!`;
+
+  // เพิ่ม SweetAlert2 confirmation ก่อนที่จะบันทึก
+  let confirmTitle = '';
+  let confirmText = '';
+  if (route.name === 'application-edit' && id.value) {
+    confirmTitle = 'คุณต้องการบันทึกการแก้ไขนี้หรือไม่?';
+    confirmText = 'การเปลี่ยนแปลงข้อมูลใบสมัครจะถูกบันทึก';
+  } else {
+    confirmTitle = 'คุณต้องการบันทึกใบสมัครใหม่นี้หรือไม่?';
+    confirmText = 'ข้อมูลใบสมัครใหม่จะถูกเพิ่มเข้าสู่ระบบ';
+  }
+
   const result = await Swal.fire({
-    title: 'ยืนยันการบันทึกข้อมูล?',
+    title: confirmTitle,
     text: confirmText,
     icon: 'question',
     showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: confirmButtonText,
-    cancelButtonText: 'ยกเลิก'
+    confirmButtonColor: '#3085d6', // สีน้ำเงินสำหรับปุ่มยืนยัน
+    cancelButtonColor: '#d33', // สีแดงสำหรับปุ่มยกเลิก
+    confirmButtonText: 'ใช่, บันทึกเลย!',
+    cancelButtonText: 'ไม่, ยกเลิก'
   });
+
+  // ถ้าผู้ใช้กดยกเลิก ก็จะหยุดการทำงานของฟังก์ชัน
   if (!result.isConfirmed) {
-    Swal.fire(
-      'ยกเลิก',
-      'การบันทึกข้อมูลถูกยกเลิก.',
-      'info'
-    );
     return;
   }
-  loading.value = true;
-  error.value = '';
-  const minTime = 850;
-  const start = Date.now();
+
+  // ดำเนินการบันทึกข้อมูลหากผู้ใช้ยืนยัน
   try {
-    let responseData;
-    if (route.name === 'application-edit') {
-      responseData = await updateApplication(id.value, {
-        jobTitle: form.value.position,
-        companyName: form.value.company,
-        appliedDate: form.value.date,
-        statusId: form.value.statusId,
-        channel: form.value.channel,
-        notes: form.value.notes
-      });
+    const payload = {
+      companyName: form.value.companyName,
+      jobTitle: form.value.jobTitle,
+      appliedDate: form.value.appliedDate ? form.value.appliedDate.toISOString().split('T')[0] : null,
+      statusId: Number(form.value.statusId),
+      channel: form.value.channel,
+      notes: form.value.notes
+    };
+
+    if (route.name === 'application-edit' && id.value) {
+      await updateApplication(id.value, payload);
+      Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ', text: 'ข้อมูลใบสมัครถูกอัปเดตเรียบร้อยแล้ว', confirmButtonText: 'ตกลง' });
     } else {
-      responseData = await addApplication({
-        jobTitle: form.value.position,
-        companyName: form.value.company,
-        appliedDate: form.value.date,
-        statusId: form.value.statusId,
-        channel: form.value.channel,
-        notes: form.value.notes
-      });
+      await addApplication(payload);
+      Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: 'เพิ่มใบสมัครงานใหม่เรียบร้อยแล้ว', confirmButtonText: 'ตกลง' });
     }
-    const elapsed = Date.now() - start;
-    if (elapsed < minTime) {
-      await new Promise(res => setTimeout(res, minTime - elapsed));
-    }
-    await Swal.fire({
-      icon: 'success',
-      title: 'สำเร็จ!',
-      text: `บันทึกข้อมูลใบสมัครงานเรียบร้อยแล้ว.`,
-      showConfirmButton: false,
-      timer: 1500
-    });
-    if (props.isModal) {
-      emit('success');
-    } else {
-      router.push({ name: 'applications' });
-    }
+    emit('success');
+    handleCancel();
   } catch (e) {
     Swal.fire({
       icon: 'error',
       title: 'เกิดข้อผิดพลาด',
-      text: `เกิดข้อผิดพลาดในการบันทึก: ${e.message || 'กรุณาลองใหม่'}`,
+      text: `ไม่สามารถบันทึกข้อมูลได้: ${e.message}`,
       confirmButtonText: 'ตกลง'
     });
+    console.error("Error saving application:", e);
   } finally {
     loading.value = false;
   }
 }
 
-watch(form, (newForm) => {
-  // Removed debug log
-}, { deep: true });
-
 function handleCancel() {
+  emit('close');
   if (props.isModal) {
-    emit('close');
+    router.push({ name: 'applications' });
   } else {
     router.back();
   }
 }
-
-const inputRef = ref(null)
-defineExpose({ inputRef })
 </script>
 
 <template>
@@ -275,12 +227,39 @@ defineExpose({ inputRef })
     <form @submit.prevent="handleSubmit" class="!space-y-10 !pt-5"
       :class="{ 'opacity-60 pointer-events-none': loading }">
       <div class="grid grid-cols-1 md:grid-cols-2 !gap-10">
-        <BaseInput v-model="form.company" label="บริษัท" required class="text-base h-12" placeholder="กรอกชื่อบริษัท" />
-        <BaseInput v-model="form.position" label="ตำแหน่งงาน" required class="text-base h-12"
+        <BaseInput v-model="form.companyName" label="บริษัท" required class="text-base h-12"
+          placeholder="กรอกชื่อบริษัท" />
+        <BaseInput v-model="form.jobTitle" label="ตำแหน่งงาน" required class="text-base h-12"
           placeholder="กรอกตำแหน่งงานที่สมัคร" />
 
-        <BaseInput ref="dateInputComponentRef" v-model="form.date" label="วันที่สมัคร" :required="true"
-          placeholder="เลือกวันที่" :readonly="true" class="text-base h-12" />
+        <div class="md:col-span-1">
+          <VDatePicker
+            :key="id"
+            v-model="form.appliedDate"
+            :masks="{ input: 'DD/MM/YYYY' }"
+            :popover="{ visibility: 'click' }"
+            :attributes="attributes"
+            locale="th"
+            color="blue"
+            :is-dark="isDark"
+            borderless
+            is-required
+            is-expanded="false"
+          >
+            <template #default="{ inputValue, inputEvents }">
+              <BaseInput
+                :model-value="inputValue"
+                v-on="inputEvents"
+                label="วันที่สมัคร"
+                required
+                class="text-base h-12"
+                placeholder="เลือกวันที่"
+                readonly
+                style="cursor: pointer;"
+              />
+            </template>
+          </VDatePicker>
+        </div>
 
         <BaseInput v-model="form.channel" label="ช่องทางที่สมัคร" class="text-base h-12"
           placeholder="กรอกช่องทางที่สมัคร" />
@@ -372,5 +351,46 @@ defineExpose({ inputRef })
   100% {
     transform: translateX(100%);
   }
+}
+
+/* กำหนดสีตัวอักษรทั้งหมดให้เป็นสีขาว (หรือสีอ่อนมากๆ) */
+/* .vc-dark เป็น class ที่ VCalendar เพิ่มเมื่อใช้ theme="dark" */
+:deep(.vc-dark .vc-title),
+/* ชื่อเดือนและปี */
+:deep(.vc-dark .vc-weekday),
+/* ชื่อวันในสัปดาห์ */
+:deep(.vc-dark .vc-day-content),
+/* ตัวเลขวันที่ในแต่ละวัน */
+:deep(.vc-dark .vc-time),
+/* ถ้าคุณใช้ตัวเลือกเวลา */
+:deep(.vc-dark .vc-arrow) {
+  /* ลูกศรเปลี่ยนเดือน/ปี */
+  color: #ffffff !important;
+  /* กำหนดเป็นสีขาว และใช้ !important เพื่อให้แน่ใจว่า override ได้ */
+}
+
+/* ปรับสีสำหรับวันที่ที่เป็นสีแดง (เช่น วันอาทิตย์) ให้เป็นสีแดงที่สว่างและมองเห็นได้บนพื้นหลังโปร่งใสเข้ม */
+:deep(.vc-dark .vc-red) {
+  color: #FF6B6B !important;
+  /* สีแดงที่สว่างขึ้น */
+}
+
+/* สีสำหรับวันที่ที่ไม่อยู่ในเดือนปัจจุบัน (ทำให้เป็นสีขาวจางๆ) */
+:deep(.vc-dark .is-outside-month .vc-day-content) {
+  color: rgba(255, 255, 255, 0.7) !important;
+  /* สีขาวที่โปร่งใสเล็กน้อย */
+}
+
+/* สีสำหรับตัวอักษรบนวันที่ถูกเลือก/ไฮไลต์ (เพื่อให้ตัวอักษรสีขาวตัดกับสีไฮไลต์ เช่น สีฟ้า) */
+:deep(.vc-dark .vc-highlight-content-solid) {
+  color: #ffffff !important;
+  /* สีขาว */
+}
+
+/* กำหนดสีตัวอักษรสำหรับ input field ของ VCalendar */
+/* class="!text-white" บน <VDatePicker> อาจมีผลอยู่แล้ว แต่ถ้ายังไม่ได้ผล ให้ใช้ CSS นี้ */
+:deep(.vc-text-input) {
+  color: #ffffff !important;
+  /* สีขาว */
 }
 </style>

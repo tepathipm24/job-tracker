@@ -83,8 +83,8 @@ export async function updateApplicationStatus(applicationId, statusId) {
 
 export async function updateApplication(id, application) {
   try {
-    const res = await fetch(appUrl, {
-      method: 'POST',
+    const res = await fetch(`${appUrl}/${id}`, {
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
