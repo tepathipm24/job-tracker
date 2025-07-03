@@ -1,8 +1,7 @@
-import router from "../router";
-import Swal from 'sweetalert2';
 
-const appUrl = 'http://localhost:3000/applications'
-const statusUrl = 'http://localhost:3000/status'
+const baseApi = import.meta.env.VITE_API_BASE
+const appUrl = `${baseApi}/applications`
+const statusUrl = `${baseApi}/status`
 
 export async function getAllList() {
     try {
